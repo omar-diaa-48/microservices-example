@@ -10,7 +10,6 @@ const producer = kafka.producer({
 })
 
 const consumer = kafka.consumer({
-    createPartitioner: Partitioners.DefaultPartitioner,
     groupId: "email-service"
 })
 
@@ -30,7 +29,7 @@ const run = async () => {
 
                 console.log(`Email sent to user ${userId}`)
 
-                producer.send({
+                await producer.send({
                     topic: "email-successful",
                     messages: [
                         { value: JSON.stringify({ userId }) }
@@ -39,6 +38,8 @@ const run = async () => {
             }
         })
     } catch (error) {
+        await producer.disconnect()
+        await consumer.disconnect()
         console.error(error)
     }
 }

@@ -1,4 +1,4 @@
-import { Kafka, Partitioners } from "kafkajs"
+import { Kafka } from "kafkajs"
 
 const kafka = new Kafka({
     clientId: "analytic-service",
@@ -6,7 +6,6 @@ const kafka = new Kafka({
 })
 
 const consumer = kafka.consumer({
-    createPartitioner: Partitioners.DefaultPartitioner,
     groupId: "analytic-service"
 })
 
@@ -28,24 +27,24 @@ const run = async () => {
                         const total = cart.reduce((acc, item) => acc + item.price, 0)
 
                         console.log(`Analytic consumer: Payment successful: User ${userId} paid ${total}`)
-                    }
                         break;
+                    }
 
                     case "order-successful": {
                         const value = message.value.toString()
                         const { userId, orderId } = JSON.parse(value)
 
                         console.log(`Analytic consumer: Order successful: User ${userId} Order ${orderId}`)
-                    }
                         break;
+                    }
 
                     case "email-successful": {
                         const value = message.value.toString()
                         const { userId } = JSON.parse(value)
 
                         console.log(`Analytic consumer: Email successful: User ${userId}`)
-                    }
                         break;
+                    }
 
                     default:
                         break;
@@ -55,6 +54,7 @@ const run = async () => {
             }
         })
     } catch (error) {
+        await consumer.disconnect()
         console.error(error)
     }
 }

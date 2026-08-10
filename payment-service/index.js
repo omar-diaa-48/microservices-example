@@ -25,6 +25,7 @@ const connectToKafka = async () => {
         await producer.connect()
         console.log("Producer connected!")
     } catch (error) {
+        await producer.disconnect()
         console.error("Error connection to kafka", error)
     }
 }

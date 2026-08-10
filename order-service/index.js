@@ -10,7 +10,6 @@ const producer = kafka.producer({
 })
 
 const consumer = kafka.consumer({
-    createPartitioner: Partitioners.DefaultPartitioner,
     groupId: "order-service"
 })
 
@@ -40,6 +39,8 @@ const run = async () => {
             }
         })
     } catch (error) {
+        await producer.disconnect()
+        await consumer.disconnect()
         console.error(error)
     }
 }
