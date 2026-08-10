@@ -1,0 +1,25 @@
+{
+  "name": "long-journey-microservices",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently --names \"payment,order,email,analytic,client\" --prefix-colors \"bgBlue,bgGreen,bgYellow,bgMagenta,bgCyan\" \"npm run dev --prefix payment-service\" \"npm run dev --prefix order-service\" \"npm run dev --prefix email-service\" \"npm run dev --prefix analytic-service\" \"npm run dev --prefix client\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omar-diaa-48/microservices-example.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/omar-diaa-48/microservices-example/issues"
+  },
+  "homepage": "https://github.com/omar-diaa-48/microservices-example#readme",
+  "dependencies": {
+    "concurrently": "^10.0.4"
+  }
+}
