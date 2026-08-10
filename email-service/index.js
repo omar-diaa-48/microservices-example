@@ -1,0 +1,34 @@
+import { Kafka, Partitioners } from "kafkajs"
+
+const kafka = new Kafka({
+    clientId: "email-service",
+    brokers: ["localhost:9094"]
+})
+
+const consumer = kafka.consumer({
+    createPartitioner: Partitioners.DefaultPartitioner,
+    groupId: "email-service"
+})
+
+const run = async () => {
+    try {
+        await consumer.connect()
+        await consumer.subscribe({
+            topic: "order-successful",
+            fromBeginning: true
+        })
+
+        await consumer.run({
+            eachMessage: async ({ topic, partition, message }) => {
+                const value = message.value.toString()
+                const { userId, orderId } = JSON.parse(value)
+
+                 console.log(`Email sent to user ${userId}`)
+            }
+        })
+    } catch (error) {
+        console.error(error)
+    }
+}
+
+run()
