@@ -43,8 +43,6 @@ const run = async () => {
                         const value = message.value.toString()
                         const { userId } = JSON.parse(value)
 
-                        const total = cart.reduce((acc, item) => acc + item.price, 0)
-
                         console.log(`Analytic consumer: Email successful: User ${userId}`)
                     }
                         break;

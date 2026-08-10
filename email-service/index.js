@@ -5,6 +5,10 @@ const kafka = new Kafka({
     brokers: ["localhost:9094"]
 })
 
+const producer = kafka.producer({
+    createPartitioner: Partitioners.DefaultPartitioner,
+})
+
 const consumer = kafka.consumer({
     createPartitioner: Partitioners.DefaultPartitioner,
     groupId: "email-service"
@@ -12,6 +16,7 @@ const consumer = kafka.consumer({
 
 const run = async () => {
     try {
+        await producer.connect()
         await consumer.connect()
         await consumer.subscribe({
             topic: "order-successful",
@@ -23,7 +28,14 @@ const run = async () => {
                 const value = message.value.toString()
                 const { userId, orderId } = JSON.parse(value)
 
-                 console.log(`Email sent to user ${userId}`)
+                console.log(`Email sent to user ${userId}`)
+
+                producer.send({
+                    topic: "email-successful",
+                    messages: [
+                        { value: JSON.stringify(userId) }
+                    ]
+                })
             }
         })
     } catch (error) {
