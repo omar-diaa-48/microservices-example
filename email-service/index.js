@@ -33,7 +33,7 @@ const run = async () => {
                 producer.send({
                     topic: "email-successful",
                     messages: [
-                        { value: JSON.stringify(userId) }
+                        { value: JSON.stringify({ userId }) }
                     ]
                 })
             }
