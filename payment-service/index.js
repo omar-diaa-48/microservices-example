@@ -26,6 +26,9 @@ const kafka = new Kafka({
 
 const producer = kafka.producer({
     createPartitioner: Partitioners.DefaultPartitioner,
+    // Idempotent producer: acks=all + max-in-flight=1, so a retried batch can
+    // never be reordered behind a later one within a partition.
+    idempotent: true,
 })
 
 // Consumer for the compensation path. When a later saga step fails,
@@ -58,7 +61,7 @@ const connectToKafka = async () => {
 
                 await producer.send({
                     topic: "payment-refunded",
-                    messages: [{ value: JSON.stringify({ userId, paymentId, amount, reason }) }],
+                    messages: [{ key: userId, value: JSON.stringify({ userId, paymentId, amount, reason }) }],
                 })
             } catch (error) {
                 // Swallow bad payloads so one poison message can't crash the consumer.
@@ -83,7 +86,8 @@ app.post("/payment-service", async (req, res, next) => {
 
         await producer.send({
             topic: "payment-successful",
-            messages: [{ value: JSON.stringify({ cart, userId, paymentId }) }],
+            // key = userId → keeps this user's saga events on one partition, in order.
+            messages: [{ key: userId, value: JSON.stringify({ cart, userId, paymentId }) }],
         })
 
         return res.status(200).send("Payment successful")

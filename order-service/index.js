@@ -13,6 +13,9 @@ const kafka = new Kafka({
 
 const producer = kafka.producer({
     createPartitioner: Partitioners.DefaultPartitioner,
+    // Idempotent producer: acks=all + max-in-flight=1, so a retried batch can
+    // never be reordered behind a later one within a partition.
+    idempotent: true,
 })
 
 const consumer = kafka.consumer({
@@ -50,7 +53,9 @@ const run = async () => {
                     // Reverse event: payment-service consumes this to refund T1.
                     await producer.send({
                         topic: "order-failed",
-                        messages: [{ value: JSON.stringify({ userId, cart, paymentId, reason }) }],
+                        // key = userId → all events for this user share a partition
+                        // and stay ordered. Use an orderId/correlationId in real apps.
+                        messages: [{ key: userId, value: JSON.stringify({ userId, cart, paymentId, reason }) }],
                     })
                     return
                 }
@@ -60,7 +65,7 @@ const run = async () => {
 
                 await producer.send({
                     topic: "order-successful",
-                    messages: [{ value: JSON.stringify({ userId, orderId }) }],
+                    messages: [{ key: userId, value: JSON.stringify({ userId, orderId }) }],
                 })
             } catch (error) {
                 // Swallow bad payloads so one poison message can't crash the consumer.

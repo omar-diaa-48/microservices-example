@@ -13,6 +13,9 @@ const kafka = new Kafka({
 
 const producer = kafka.producer({
     createPartitioner: Partitioners.DefaultPartitioner,
+    // Idempotent producer: acks=all + max-in-flight=1, so a retried batch can
+    // never be reordered behind a later one within a partition.
+    idempotent: true,
 })
 
 const consumer = kafka.consumer({
@@ -36,7 +39,8 @@ const run = async () => {
 
                 await producer.send({
                     topic: "email-successful",
-                    messages: [{ value: JSON.stringify({ userId }) }],
+                    // key = userId → keeps this user's saga events on one partition, in order.
+                    messages: [{ key: userId, value: JSON.stringify({ userId }) }],
                 })
             } catch (error) {
                 // Swallow bad payloads so one poison message can't crash the consumer.
