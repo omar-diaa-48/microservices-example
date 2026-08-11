@@ -1,21 +1,10 @@
-import { otelSdk } from "./tracing.js"
 import { Kafka, Partitioners } from "kafkajs"
 import pino from "pino"
+import { otelSdk } from "./tracing.js"
 
 const logger = pino({ name: "order-service" })
 
 const brokers = (process.env.KAFKA_BROKERS ?? "localhost:9094,localhost:9095,localhost:9096").split(",")
-
-// Product ids that are "out of stock". If a purchased item is in this set, the
-// order fails — this is how we trigger the saga's compensation path.
-// Leave empty (default) for the happy path; set e.g. OUT_OF_STOCK_IDS=2 to
-// force a rollback and watch payment-service refund the charge.
-const outOfStockIds = new Set(
-    (process.env.OUT_OF_STOCK_IDS ?? "")
-        .split(",")
-        .map((id) => id.trim())
-        .filter(Boolean),
-)
 
 const kafka = new Kafka({
     clientId: "order-service",
@@ -47,9 +36,12 @@ const run = async () => {
                 // This is an EXPECTED failure that triggers a compensating
                 // transaction upstream — distinct from the poison-message
                 // handling in the catch block below.
-                const unavailable = Array.isArray(cart)
-                    ? cart.filter((item) => outOfStockIds.has(String(item.id)))
-                    : []
+                // const unavailable = Array.isArray(cart)
+                //     ? cart.filter((item) => outOfStockIds.has(String(item.id)))
+                //     : []
+
+                const unavailable = []
+
 
                 if (unavailable.length > 0) {
                     const reason = `out of stock: ${unavailable.map((item) => item.name).join(", ")}`
