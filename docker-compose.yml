@@ -198,6 +198,9 @@ services:
       - KAFKA_BROKERS=kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092
       - OTEL_SERVICE_NAME=order-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+      # Saga rollback demo: set to a cart product id (e.g. 2) to make the order
+      # fail and trigger payment-service's refund. Empty = happy path.
+      - OUT_OF_STOCK_IDS=
     networks:
       - kafka-network
     restart: unless-stopped

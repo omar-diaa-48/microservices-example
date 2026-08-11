@@ -18,7 +18,7 @@ const consumer = kafka.consumer({
 const run = async () => {
     await consumer.connect()
     await consumer.subscribe({
-        topics: ["payment-successful", "order-successful", "email-successful"],
+        topics: ["payment-successful", "order-successful", "email-successful", "order-failed", "payment-refunded"],
         fromBeginning: false,
     })
 
@@ -42,6 +42,16 @@ const run = async () => {
                     case "email-successful": {
                         const { userId } = payload
                         logger.info({ userId }, "Analytic: email successful")
+                        break
+                    }
+                    case "order-failed": {
+                        const { userId, reason } = payload
+                        logger.warn({ userId, reason }, "Analytic: order failed (saga compensating)")
+                        break
+                    }
+                    case "payment-refunded": {
+                        const { userId, amount, reason } = payload
+                        logger.warn({ userId, amount, reason }, "Analytic: payment refunded (compensation done)")
                         break
                     }
                     default:

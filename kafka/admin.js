@@ -17,6 +17,9 @@ const run = async () => {
             { topic: "payment-successful" },
             { topic: "order-successful" },
             { topic: "email-successful" },
+            // Compensation (saga rollback) topics:
+            { topic: "order-failed" },
+            { topic: "payment-refunded" },
         ],
     })
     console.log(created ? "Topics created" : "Topics already exist — nothing to do")
