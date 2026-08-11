@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "node --watch index.js",
+    "dev": "node --watch --import ./tracing.js index.js",
+    "start": "node --import ./tracing.js index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -12,6 +13,11 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "kafkajs": "^2.2.4"
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/auto-instrumentations-node": "^0.79.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.221.0",
+    "@opentelemetry/sdk-node": "^0.221.0",
+    "kafkajs": "^2.2.4",
+    "pino": "^10.3.1"
   }
 }

@@ -1,6 +1,12 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   kafka-broker-1:
-    image: apache/kafka:latest
+    image: apache/kafka:4.3.1
     container_name: kafka-broker-1
     environment:
       - KAFKA_NODE_ID=1
@@ -15,14 +21,24 @@ services:
       - KAFKA_DEFAULT_REPLICATION_FACTOR=3
       - KAFKA_MIN_INSYNC_REPLICAS=2
       - KAFKA_KRAFT_CLUSTER_ID=f4lkWen32tmfA
+      - KAFKA_LOG_DIRS=/var/lib/kafka/data
     ports:
       - "9094:9094"
+    volumes:
+      - kafka-broker-1-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
     networks:
       - kafka-network
     restart: unless-stopped
+    logging: *default-logging
 
   kafka-broker-2:
-    image: apache/kafka:latest
+    image: apache/kafka:4.3.1
     container_name: kafka-broker-2
     environment:
       - KAFKA_NODE_ID=2
@@ -37,14 +53,24 @@ services:
       - KAFKA_DEFAULT_REPLICATION_FACTOR=3
       - KAFKA_MIN_INSYNC_REPLICAS=2
       - KAFKA_KRAFT_CLUSTER_ID=f4lkWen32tmfA
+      - KAFKA_LOG_DIRS=/var/lib/kafka/data
     ports:
       - "9095:9095"
+    volumes:
+      - kafka-broker-2-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
     networks:
       - kafka-network
     restart: unless-stopped
+    logging: *default-logging
 
   kafka-broker-3:
-    image: apache/kafka:latest
+    image: apache/kafka:4.3.1
     container_name: kafka-broker-3
     environment:
       - KAFKA_NODE_ID=3
@@ -59,19 +85,32 @@ services:
       - KAFKA_DEFAULT_REPLICATION_FACTOR=3
       - KAFKA_MIN_INSYNC_REPLICAS=2
       - KAFKA_KRAFT_CLUSTER_ID=f4lkWen32tmfA
+      - KAFKA_LOG_DIRS=/var/lib/kafka/data
     ports:
       - "9096:9096"
+    volumes:
+      - kafka-broker-3-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
     networks:
       - kafka-network
     restart: unless-stopped
+    logging: *default-logging
 
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    image: provectuslabs/kafka-ui:v0.7.2
     container_name: kafka-ui
     depends_on:
-      - kafka-broker-1
-      - kafka-broker-2
-      - kafka-broker-3
+      kafka-broker-1:
+        condition: service_healthy
+      kafka-broker-2:
+        condition: service_healthy
+      kafka-broker-3:
+        condition: service_healthy
     ports:
       - "8080:8080"
     environment:
@@ -81,6 +120,137 @@ services:
       - KAFKA_CLUSTERS_0_TOPIC_AUTO_CREATE=true
     networks:
       - kafka-network
+    restart: unless-stopped
+    logging: *default-logging
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    logging: *default-logging
+
+  kafka-init:
+    build:
+      context: ./kafka
+    container_name: kafka-init
+    depends_on:
+      kafka-broker-1:
+        condition: service_healthy
+      kafka-broker-2:
+        condition: service_healthy
+      kafka-broker-3:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKERS=kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092
+    networks:
+      - kafka-network
+    restart: "no"
+    logging: *default-logging
+
+  payment-service:
+    build:
+      context: ./payment-service
+    container_name: payment-service
+    depends_on:
+      kafka-broker-1:
+        condition: service_healthy
+      kafka-broker-2:
+        condition: service_healthy
+      kafka-broker-3:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - KAFKA_BROKERS=kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092
+      - CLIENT_ORIGIN=http://localhost:3000
+      - OTEL_SERVICE_NAME=payment-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    logging: *default-logging
+
+  order-service:
+    build:
+      context: ./order-service
+    container_name: order-service
+    depends_on:
+      kafka-broker-1:
+        condition: service_healthy
+      kafka-broker-2:
+        condition: service_healthy
+      kafka-broker-3:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      - KAFKA_BROKERS=kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092
+      - OTEL_SERVICE_NAME=order-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    logging: *default-logging
+
+  email-service:
+    build:
+      context: ./email-service
+    container_name: email-service
+    depends_on:
+      kafka-broker-1:
+        condition: service_healthy
+      kafka-broker-2:
+        condition: service_healthy
+      kafka-broker-3:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      - KAFKA_BROKERS=kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092
+      - OTEL_SERVICE_NAME=email-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    logging: *default-logging
+
+  analytic-service:
+    build:
+      context: ./analytic-service
+    container_name: analytic-service
+    depends_on:
+      kafka-broker-1:
+        condition: service_healthy
+      kafka-broker-2:
+        condition: service_healthy
+      kafka-broker-3:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      - KAFKA_BROKERS=kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9092
+      - OTEL_SERVICE_NAME=analytic-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    logging: *default-logging
+
+volumes:
+  kafka-broker-1-data:
+  kafka-broker-2-data:
+  kafka-broker-3-data:
 
 networks:
   kafka-network:
