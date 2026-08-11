@@ -19,7 +19,7 @@ const run = async () => {
         await consumer.connect()
         await consumer.subscribe({
             topic: "payment-successful",
-            fromBeginning: true
+            fromBeginning: false
         })
 
         await consumer.run({
